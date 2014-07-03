@@ -43,15 +43,36 @@ public:
     List(std::initializer_list<T> l,
          std::function<QVariant(T &)> displayFunction,
          QObject *parent = nullptr) :
-        List { l, { { Qt::DisplayRole, displayFunction } }, parent }
+        List { l,
+               { { Qt::DisplayRole, displayFunction } },
+               {},
+               parent }
+    {}
+
+    List(std::initializer_list<T> l,
+         std::function<QVariant(T &)> displayFunction,
+         std::function<bool(T &, const QVariant)> editFunction,
+         QObject *parent = nullptr) :
+        List { l,
+               { { Qt::DisplayRole, displayFunction } },
+               { { Qt::EditRole, editFunction } },
+               parent }
     {}
 
     List(std::initializer_list<T> l,
          std::unordered_map<int, std::function<QVariant(T &)>> roles,
          QObject *parent = nullptr):
+        List { l, roles, {}, parent }
+    {}
+
+    List(std::initializer_list<T> l,
+         std::unordered_map<int, std::function<QVariant(T &)>> roles,
+         std::unordered_map<int, std::function<bool(T &, const QVariant)>> editRoles,
+         QObject *parent = nullptr):
         QAbstractListModel { parent },
         _items { l },
-        _roles { roles }
+        _roles { roles },
+        _editRoles { editRoles }
     {}
 
     int rowCount(const QModelIndex &) const
@@ -74,9 +95,30 @@ public:
         return roleFunction->second(item);
     }
 
+    Qt::ItemFlags flags(const QModelIndex &index) const
+    {
+        return QAbstractListModel::flags(index) | (_editRoles.empty()? Qt::NoItemFlags : Qt::ItemIsEditable);
+    }
+
+    bool setData(const QModelIndex &index, const QVariant &value, int role)
+    {
+        if (!index.isValid() ||
+            index.row() >= _items.size())
+            return false;
+
+        auto &item = _items[index.row()];
+        auto editRoleFunction = _editRoles.find(role);
+
+        if (editRoleFunction == _editRoles.end())
+            return false;
+
+        return editRoleFunction->second(item, value);
+    }
+
 private:
     QList<T> _items;
     std::unordered_map<int, std::function<QVariant(T &)>> _roles;
+    std::unordered_map<int, std::function<bool(T &, const QVariant)>> _editRoles;
 };
 
 }

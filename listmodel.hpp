@@ -115,8 +115,87 @@ public:
         return editRoleFunction->second(item, value);
     }
 
+    bool insertRows(int row, int count, const QModelIndex &parent)
+    {
+        if (count == 0)
+            return true;
+
+        if (row > _items.size())
+            return false;
+
+        beginInsertRows(parent, row, row + count - 1);
+
+        for (int i = 0; i < count; ++i)
+            _items.insert(row, T { });
+
+        endInsertRows();
+
+        return true;
+    }
+
+    bool removeRows(int row, int count, const QModelIndex &parent)
+    {
+        if (count == 0)
+            return true;
+
+        if (row + count > _items.size())
+            return false;
+
+        beginInsertRows(parent, row, row + count - 1);
+
+        for (int i = 0; i < count; ++i)
+            _items.removeAt(row);
+
+        endInsertRows();
+
+        return true;
+    }
+
+    bool insert(int row, std::initializer_list<T> items)
+    {
+        if (items.size() == 0)
+            return true;
+
+        if (!insertRows(row, items.size()))
+            return false;
+
+        for (int i = 0; i < items.size(); ++i)
+            _items[i + row] = items[i];
+
+        return true;
+    }
+
+    bool insert(int row, const T &item)
+    {
+        return insert(row, { item });
+    }
+
+    bool append(std::initializer_list<T> items)
+    {
+        if (items.size() == 0)
+            return true;
+
+        auto first = _items.size();
+        auto last = _items.size() + items.size() - 1;
+
+        beginInsertRows(QModelIndex {}, first, last);
+
+        for (auto i : items)
+            _items.append(i);
+
+        endInsertColumns();
+        emit dataChanged(index(first), index(last));
+
+        return true;
+    }
+
+    bool append(const T &item)
+    {
+        return append({ item });
+    }
+
 private:
-    QList<T> _items;
+    QVector<T> _items;
     std::unordered_map<int, std::function<QVariant(T &)>> _roles;
     std::unordered_map<int, std::function<bool(T &, const QVariant)>> _editRoles;
 };

@@ -1,6 +1,8 @@
 #include "listmodel.hpp"
 
 #include <QListView>
+#include <QPushButton>
+#include <QVBoxLayout>
 #include <QApplication>
 
 struct Person
@@ -59,5 +61,35 @@ int main(int argc, char **argv)
                  });
     lv3.show();
 
+    auto model4 = new EasyModels::List<Person> {
+        {},
+
+        [](Person &p) -> QVariant {
+            return "Name: " + p.name + ", age: " + QString::number(p.age);
+        },
+
+        [](Person &p, const QVariant &value) -> bool {
+            p.name = value.toString(); return true;
+        }
+    };
+
+    QWidget w;
+    w.setWindowTitle("Appendable");
+    w.setLayout(new QVBoxLayout { &w });
+
+    QListView lv4;
+    lv4.setModel(model4);
+    w.layout()->addWidget(&lv4);
+
+    QPushButton button { "Append" };
+    QObject::connect(&button, &QPushButton::clicked, [=](){
+        model4->append(Person { "Dolly", 17 });
+    });
+    w.layout()->addWidget(&button);
+
+    w.show();
+
     a.exec();
+
+    delete model4;
 }
